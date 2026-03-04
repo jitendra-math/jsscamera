@@ -1,18 +1,18 @@
 // src/lib/workers/imageProcessor.js
 
-self.onmessage = function(event) {
-    var data = event.data;
-    var imageData = data.imageData;
-    var format = data.format;
-    var quality = data.quality;
+self.onmessage = async function(event) {
+    const data = event.data;
+    const imageData = data.imageData;
+    const format = data.format;
+    const quality = data.quality;
 
     // Encoding process start karein
-    runEncoding(imageData, format, quality);
+    await runEncoding(imageData, format, quality);
 };
 
 async function runEncoding(imageData, format, quality) {
     try {
-        var resultBuffer;
+        let resultBuffer;
 
         if (format === 'avif') {
             resultBuffer = await encodeAvif(imageData, quality);
@@ -22,7 +22,7 @@ async function runEncoding(imageData, format, quality) {
             throw new Error("Format " + format + " support nahi hai.");
         }
 
-        var blob = new Blob([resultBuffer], { type: "image/" + format });
+        const blob = new Blob([resultBuffer], { type: "image/" + format });
         self.postMessage({ success: true, blob: blob });
 
     } catch (error) {
@@ -32,17 +32,17 @@ async function runEncoding(imageData, format, quality) {
 }
 
 async function encodeAvif(imageData, quality) {
-    importScripts('/wasm/avif/avif_enc.js');
+    // Dynamic import – works because worker is type: 'module'
+    const { default: initAvif } = await import('/wasm/avif/avif_enc.js');
     
-    // ES6 Shorthand for locateFile (Build fix)
-    var module = await avif_enc({
+    const module = await initAvif({
         locateFile(path) { 
             return "/wasm/avif/" + path; 
         }
     });
 
-    var rawPixels = new Uint8Array(imageData.data.buffer);
-    var options = {
+    const rawPixels = new Uint8Array(imageData.data.buffer);
+    const options = {
         quality: Math.round(quality * 100),
         qualityAlpha: -1,
         tileRowsLog2: 0,
@@ -56,25 +56,25 @@ async function encodeAvif(imageData, quality) {
         enableSharpYUV: false
     };
 
-    var result = module.encode(rawPixels, imageData.width, imageData.height, options);
+    const result = module.encode(rawPixels, imageData.width, imageData.height, options);
     if (!result) throw new Error("AVIF encoding fail ho gayi.");
     
-    var outputBuffer = new Uint8Array(result);
+    const outputBuffer = new Uint8Array(result);
     if (module.free_result) module.free_result(); 
     return outputBuffer;
 }
 
 async function encodeJxl(imageData, quality) {
-    importScripts('/wasm/jxl/jxl_enc.js');
+    const { default: initJxl } = await import('/wasm/jxl/jxl_enc.js');
     
-    var module = await jxl_enc({
+    const module = await initJxl({
         locateFile(path) { 
             return "/wasm/jxl/" + path; 
         }
     });
 
-    var rawPixels = new Uint8Array(imageData.data.buffer);
-    var options = {
+    const rawPixels = new Uint8Array(imageData.data.buffer);
+    const options = {
         speed: 7,
         quality: quality * 100,
         progressive: false,
@@ -84,10 +84,10 @@ async function encodeJxl(imageData, quality) {
         decodingSpeedTier: 0
     };
 
-    var result = module.encode(rawPixels, imageData.width, imageData.height, options);
+    const result = module.encode(rawPixels, imageData.width, imageData.height, options);
     if (!result) throw new Error("JXL encoding fail ho gayi.");
 
-    var outputBuffer = new Uint8Array(result);
+    const outputBuffer = new Uint8Array(result);
     if (module.free_result) module.free_result();
     return outputBuffer;
 }
