@@ -1,16 +1,16 @@
 <script>
-    import { createEventDispatcher, onMount } from 'svelte';
+    import { onMount } from 'svelte';
     import { exportNativeFormat, getRawImageData } from '$lib/utils/canvasHelper.js';
 
-    export let canvas; // Captured full-res canvas parent se aayega
+    // Svelte 5 Props
+    let { canvas, onretake } = $props(); 
     
-    const dispatch = createEventDispatcher();
-
-    let previewUrl = '';
-    let selectedFormat = 'webp'; // Default format
-    let quality = 0.9; // 90% default quality
-    let isProcessing = false;
-    let errorMessage = '';
+    // Svelte 5 Runes (State Management)
+    let previewUrl = $state('');
+    let selectedFormat = $state('webp');
+    let quality = $state(0.9);
+    let isProcessing = $state(false);
+    let errorMessage = $state('');
 
     const formats = [
         { id: 'png', label: 'PNG (Lossless)', ext: 'png' },
@@ -20,7 +20,7 @@
         { id: 'jxl', label: 'JPEG XL', ext: 'jxl' }
     ];
 
-    // UI preview ke liye ek low-res image banana taaki app smooth chale
+    // Preview generation on mount
     onMount(async () => {
         if (canvas) {
             try {
@@ -41,12 +41,9 @@
             let finalBlob;
             
             if (['png', 'jpeg', 'webp'].includes(selectedFormat)) {
-                // Native formats
                 const mimeType = `image/${selectedFormat}`;
-                // PNG compression/quality ignore karta hai, par baakiyon ke liye set hoga
                 finalBlob = await exportNativeFormat(canvas, mimeType, quality);
             } else {
-                // Advanced formats AVIF aur JXL - Web Worker ke through
                 finalBlob = await processAdvancedFormat(selectedFormat, quality);
             }
 
@@ -60,11 +57,12 @@
 
     function processAdvancedFormat(format, exportQuality) {
         return new Promise((resolve, reject) => {
-            const worker = new Worker(new URL('$lib/workers/imageProcessor.js', import.meta.url), { type: 'module' });
+            // FIX: Removed { type: 'module' } to support importScripts inside worker
+            const worker = new Worker(new URL('$lib/workers/imageProcessor.js', import.meta.url));
             
             worker.onmessage = (event) => {
                 const { success, blob, error } = event.data;
-                worker.terminate(); // Memory free karne ke liye worker close karein
+                worker.terminate();
                 if (success) resolve(blob);
                 else reject(new Error(error));
             };
@@ -83,16 +81,11 @@
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        // Clean and branded file name
         a.download = `jss-originals-cam-${Date.now()}.${ext}`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-    }
-
-    function retakePhoto() {
-        dispatch('retake');
     }
 </script>
 
@@ -110,12 +103,12 @@
         <div>
             <h2 class="text-xl font-bold mb-4">Export Settings</h2>
             
-            <label class="block text-sm text-neutral-400 mb-2">Select Format:</label>
+            <p class="text-sm text-neutral-400 mb-2">Select Format:</p>
             <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {#each formats as fmt}
                     <button 
                         class="px-3 py-2 text-sm font-medium rounded-lg border transition-all duration-200 {selectedFormat === fmt.id ? 'bg-blue-600 border-blue-500 text-white' : 'bg-neutral-800 border-neutral-700 hover:bg-neutral-700 text-neutral-300'}"
-                        on:click={() => selectedFormat = fmt.id}
+                        onclick={() => selectedFormat = fmt.id}
                         disabled={isProcessing}
                     >
                         {fmt.label}
@@ -127,10 +120,11 @@
         {#if selectedFormat !== 'png'}
             <div>
                 <div class="flex justify-between mb-2">
-                    <label class="text-sm text-neutral-400">Quality:</label>
+                    <label for="quality-slider" class="text-sm text-neutral-400">Quality:</label>
                     <span class="text-sm font-bold text-blue-400">{Math.round(quality * 100)}%</span>
                 </div>
                 <input 
+                    id="quality-slider"
                     type="range" 
                     min="0.1" 
                     max="1.0" 
@@ -150,7 +144,7 @@
 
         <div class="flex gap-4 mt-auto pt-4 border-t border-neutral-800">
             <button 
-                on:click={retakePhoto}
+                onclick={onretake}
                 disabled={isProcessing}
                 class="flex-1 py-3 px-4 bg-neutral-800 hover:bg-neutral-700 rounded-xl font-medium transition-colors disabled:opacity-50"
             >
@@ -158,7 +152,7 @@
             </button>
             
             <button 
-                on:click={handleDownload}
+                onclick={handleDownload}
                 disabled={isProcessing}
                 class="flex-[2] py-3 px-4 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
             >
