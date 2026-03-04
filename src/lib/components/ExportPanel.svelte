@@ -57,8 +57,11 @@
 
     function processAdvancedFormat(format, exportQuality) {
         return new Promise((resolve, reject) => {
-            // FIX: Removed { type: 'module' } to support importScripts inside worker
-            const worker = new Worker(new URL('$lib/workers/imageProcessor.js', import.meta.url));
+            // Create an ES module worker so that dynamic import() works inside it
+            const worker = new Worker(
+                new URL('$lib/workers/imageProcessor.js', import.meta.url),
+                { type: 'module' }   // 👈 key change: worker as module
+            );
             
             worker.onmessage = (event) => {
                 const { success, blob, error } = event.data;
