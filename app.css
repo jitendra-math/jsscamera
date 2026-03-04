@@ -1,0 +1,8 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Agar aapko koi custom global CSS likhni ho, toh aap yahan likh sakte hain */
+body {
+    @apply bg-neutral-900 text-white antialiased;
+}
