@@ -2,12 +2,12 @@
     import CameraView from '$lib/components/CameraView.svelte';
     import ExportPanel from '$lib/components/ExportPanel.svelte';
 
-    // State variable jo track karega ki photo click ho gayi hai ya nahi
-    let capturedCanvas = null;
+    // Svelte 5 Rune: capturedCanvas ko reactive state banaya
+    let capturedCanvas = $state(null);
 
     // CameraView se canvas receive karne ka function
-    function handleCapture(event) {
-        capturedCanvas = event.detail.canvas;
+    function handleCapture(canvas) {
+        capturedCanvas = canvas;
     }
 
     // ExportPanel se wapas camera par aane ka function
@@ -29,7 +29,7 @@
             <p class="text-neutral-400 text-sm">Full hardware resolution unlocked.</p>
         </div>
         
-        <CameraView on:capture={handleCapture} />
+        <CameraView oncapture={handleCapture} />
         
     {:else}
         <div class="flex flex-col gap-1 mb-2">
@@ -37,7 +37,7 @@
             <p class="text-neutral-400 text-sm">Choose your preferred next-gen format.</p>
         </div>
         
-        <ExportPanel canvas={capturedCanvas} on:retake={handleRetake} />
+        <ExportPanel canvas={capturedCanvas} onretake={handleRetake} />
     {/if}
 
 </div>
